@@ -50,11 +50,31 @@
 #include "Json.h"
 #include "ui/dialogs/CustomMessageBox.h"
 #include "ui/dialogs/ProgressDialog.h"
+#include "ui/dialogs/skins/edit/SkinEditorDialog.h"
+
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QTemporaryDir>
 
 SkinManageDialog::SkinManageDialog(QWidget* parent, MinecraftAccountPtr acct)
     : QDialog(parent), m_acct(acct), m_ui(new Ui::SkinManageDialog), m_list(this, APPLICATION->settings()->get("SkinsDir").toString(), acct)
 {
     m_ui->setupUi(this);
+
+    {  // Bloque: boton "Editar skin" junto a los de importar
+        auto* editBtn = new QPushButton(tr("Editar skin"), this);
+        editBtn->setObjectName("editBtn");
+        auto* lay = m_ui->buttonsHLayout;
+        int idx = lay->count();
+        for (int i = 0; i < lay->count(); ++i) {
+            if (lay->itemAt(i)->widget() == m_ui->fileBtn) {
+                idx = i + 1;
+                break;
+            }
+        }
+        lay->insertWidget(idx, editBtn);
+        connect(editBtn, &QPushButton::clicked, this, &SkinManageDialog::on_editBtn_clicked);
+    }
 
     if (SkinOpenGLWindow::hasOpenGL()) {
         m_skinPreview = new SkinOpenGLWindow(this, palette().color(QPalette::Normal, QPalette::Base));
@@ -166,6 +186,36 @@ void SkinManageDialog::on_fileBtn_clicked()
         return;
     }
 }
+void SkinManageDialog::on_editBtn_clicked()
+{
+    auto* skin = getSelectedSkin();
+    if (!skin) {
+        CustomMessageBox::selectable(this, tr("Editor de skin"), tr("Selecciona primero una skin de la lista."), QMessageBox::Information)
+            ->show();
+        return;
+    }
+    SkinEditorDialog dlg(this, skin->getTexture(), skin->getModel() == SkinModel::SLIM, skin->name());
+    if (dlg.exec() != QDialog::Accepted) {
+        return;
+    }
+    QTemporaryDir tmp;
+    const auto file = tmp.filePath("skin.png");
+    if (!tmp.isValid() || !dlg.image().save(file, "PNG")) {
+        CustomMessageBox::selectable(this, tr("No se pudo guardar la skin"), tr("No pude escribir el archivo temporal."), QMessageBox::Critical)
+            ->show();
+        return;
+    }
+    auto name = dlg.skinName().trimmed();
+    name.replace(QRegularExpression("[\\\\/:*?\"<>|]"), "_");
+    if (name.isEmpty()) {
+        name = skin->name() + " editada";
+    }
+    const auto message = m_list.installSkin(file, name + ".png");
+    if (!message.isEmpty()) {
+        CustomMessageBox::selectable(this, tr("No se pudo guardar la skin"), message, QMessageBox::Critical)->show();
+    }
+}
+
 namespace {
 QPixmap previewCape(const QImage& capeImage, bool elytra = false)
 {
