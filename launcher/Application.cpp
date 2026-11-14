@@ -50,6 +50,11 @@
 #include "tools/GenericProfiler.h"
 #include "ui/InstanceWindow.h"
 #include "ui/MainWindow.h"
+#include "ui/BloqueWindow.h"
+
+#include <QPointer>
+
+static QPointer<BloqueWindow> s_bloqueWindow;
 #include "ui/ToolTipFilter.h"
 #include "ui/ViewLogWindow.h"
 
@@ -1700,6 +1705,12 @@ void Application::ShowGlobalSettings(class QWidget* parent, QString openPage)
 
 MainWindow* Application::showMainWindow(bool minimized)
 {
+    if (m_mainWindow && s_bloqueWindow) {
+        s_bloqueWindow->setWindowState(s_bloqueWindow->windowState() & ~Qt::WindowMinimized);
+        s_bloqueWindow->raise();
+        s_bloqueWindow->activateWindow();
+        return m_mainWindow;
+    }
     if (m_mainWindow) {
         m_mainWindow->setWindowState(m_mainWindow->windowState() & ~Qt::WindowMinimized);
         m_mainWindow->raise();
@@ -1709,10 +1720,12 @@ MainWindow* Application::showMainWindow(bool minimized)
         m_mainWindow->restoreState(QByteArray::fromBase64(APPLICATION->settings()->get("MainWindowState").toString().toUtf8()));
         m_mainWindow->restoreGeometry(QByteArray::fromBase64(APPLICATION->settings()->get("MainWindowGeometry").toString().toUtf8()));
 
+        // Bloque: la ventana visible es la nuestra; la clasica de Prism queda oculta (se abre desde 'Gestor clasico')
+        s_bloqueWindow = new BloqueWindow(m_mainWindow);
         if (minimized) {
-            m_mainWindow->showMinimized();
+            s_bloqueWindow->showMinimized();
         } else {
-            m_mainWindow->show();
+            s_bloqueWindow->show();
         }
 
         m_mainWindow->checkInstancePathForProblems();
