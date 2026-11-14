@@ -72,7 +72,7 @@ QPushButton* action(QWidget* parent, const QString& text, bool primary, const st
     return b;
 }
 
-QScrollArea* scroll(QWidget* inner)
+QScrollArea* wrapScroll(QWidget* inner)
 {
     auto* s = new QScrollArea();
     s->setWidgetResizable(true);
@@ -552,7 +552,7 @@ QWidget* BloqueWindow::makeHome()
         rl->addWidget(c);
         ++k;
     }
-    auto* s = scroll(row);
+    auto* s = wrapScroll(row);
     s->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     s->setMinimumHeight(250);
     v->addWidget(s, 2);
@@ -601,7 +601,7 @@ QWidget* BloqueWindow::makeDownload()
                       { action(w, tr("Ir a Instancias"), false, [this]() { go(1); }) }), 0, 2);
     v->addLayout(g);
     v->addStretch(1);
-    return scroll(w);
+    return wrapScroll(w);
 }
 
 QWidget* BloqueWindow::makeVideos()
@@ -647,7 +647,7 @@ QWidget* BloqueWindow::makeVideos()
     };
     fill(QString());
     connect(q, &QLineEdit::textChanged, w, [fill](const QString& t) { fill(t.trimmed()); });
-    return scroll(w);
+    return wrapScroll(w);
 }
 
 QWidget* BloqueWindow::makeAccount()
