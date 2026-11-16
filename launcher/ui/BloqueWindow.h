@@ -1,26 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Ventana principal de Bloque: barra lateral, carrusel de instancias, descargas, videos y mas.
-// Usa el motor de Prism (instancias, cuentas, lanzamiento y sus dialogos). Sin acentos a proposito.
+// Ventana principal de SagiriPrism: barra lateral, carrusel, explorador estilo Modrinth, videos, cuenta y ajustes.
+// Usa el motor de Prism (instancias, cuentas, lanzamiento). Sin acentos a proposito.
 #pragma once
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QList>
 #include <QMainWindow>
 #include <QPair>
 #include <QPixmap>
 #include <QPointer>
 #include <QRectF>
+#include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
+#include <functional>
 
 class MainWindow;
 class QButtonGroup;
-class QFrame;
+class QComboBox;
+class QGridLayout;
+class QHBoxLayout;
+class QLabel;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
 class QStackedWidget;
 
-// Carrusel de instancias: la tarjeta central grande, las laterales mas pequenas y oscuras.
 class BloqueCarousel : public QWidget {
     Q_OBJECT
    public:
@@ -66,31 +72,75 @@ class BloqueWindow : public QMainWindow {
 
    protected:
     void closeEvent(QCloseEvent* e) override;
+    bool eventFilter(QObject* obj, QEvent* e) override;
 
    private:
     QWidget* makeHome();
     QWidget* makeInstances();
-    QWidget* makeDownload();
+    QWidget* makeExplore();
     QWidget* makeVideos();
     QWidget* makeAccount();
     QWidget* makeSettings();
 
     void go(int page);
+    void applyTheme();
     void refresh();
+    void updateDetail();
     void updateAccount();
-    void classic(const char* slot);
+    void toast(const QString& text);
+    QPixmap avatar(int px) const;
+    QString currentInstanceId() const;
+
     void launch(const QString& id);
     void editInstance(const QString& id);
+    void changeIcon(const QString& id);
+    void deleteInstance(const QString& id);
+    void openFolder(const QString& id);
     void openSkins();
-    QString currentInstanceId() const;
+
+    void modrinthSearch(const QString& type, const QString& query, int offset, const std::function<void(const QJsonArray&)>& cb);
+    void loadPopular();
+    void loadExplore(bool reset);
+    void installModpack(const QString& projectId, const QString& title);
+    void installProject(const QString& projectId, const QString& type, const QString& instId, const QString& title);
+    void fetchVersion(const QString& projectId, const QString& type, const QString& mc, const QString& loader, bool filtered,
+                      const std::function<void(const QJsonObject&)>& cb);
+    void downloadVersionFile(const QJsonObject& version, const QString& dir, const std::function<void(bool, const QString&)>& done);
+    void loadFeed(int which);
 
     QPointer<MainWindow> m_classic;
     QStackedWidget* m_pages = nullptr;
     QButtonGroup* m_nav = nullptr;
     QLineEdit* m_search = nullptr;
     QPushButton* m_chip = nullptr;
+    QLabel* m_logo = nullptr;
     BloqueCarousel* m_carousel = nullptr;
     QListWidget* m_quick = nullptr;
     QListWidget* m_grid = nullptr;
+    QHBoxLayout* m_popularRow = nullptr;
+    QWidget* m_detPanel = nullptr;
+    QLabel* m_detIcon = nullptr;
+    QLabel* m_detName = nullptr;
+    QLabel* m_detSub = nullptr;
+
+    QString m_exType = "modpack";
+    QLineEdit* m_exSearch = nullptr;
+    QComboBox* m_exInst = nullptr;
+    QGridLayout* m_exGrid = nullptr;
+    QWidget* m_exHost = nullptr;
+    QPushButton* m_exMore = nullptr;
+    QTimer m_exTimer;
+    int m_exOffset = 0;
+    int m_exCount = 0;
+    int m_exToken = 0;
+
+    QButtonGroup* m_vidTabs = nullptr;
+    QStackedWidget* m_vidStack = nullptr;
+    QGridLayout* m_vidGrid[3] = { nullptr, nullptr, nullptr };
+    bool m_vidLoaded[3] = { false, false, false };
+
+    QLabel* m_accAvatar = nullptr;
+    QLabel* m_accName = nullptr;
+    QListWidget* m_accounts = nullptr;
     QString m_filter;
 };

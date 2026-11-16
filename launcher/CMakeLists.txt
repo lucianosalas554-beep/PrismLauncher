@@ -810,6 +810,8 @@ SET(LAUNCHER_SOURCES
     ui/MainWindow.cpp
     ui/BloqueWindow.h
     ui/BloqueWindow.cpp
+    ui/SagiriCore.h
+    ui/SagiriCore.cpp
     ui/InstanceWindow.h
     ui/InstanceWindow.cpp
     ui/ViewLogWindow.h
@@ -1493,6 +1495,7 @@ else()
     set(BLOQUE_NOWERR "-Wno-error")
 endif()
 set_source_files_properties(ui/BloqueWindow.cpp ui/dialogs/skins/edit/SkinEditorDialog.cpp ui/dialogs/skins/SkinManageDialog.cpp PROPERTIES COMPILE_OPTIONS "${BLOQUE_NOWERR}")
+set_source_files_properties(ui/SagiriCore.cpp PROPERTIES COMPILE_OPTIONS "${BLOQUE_NOWERR}")
 
 # NOTE: Universal macOS builds (i.e., `CMAKE_OSX_ARCHITECTURES="x86_64;arm64") emit benign warnings for duplicate libraries
 # lld-link on Windows fails warns with `found both wWinMain and WinMain; using latter`

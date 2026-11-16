@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Editor de skins para Bloque (basado en Prism Launcher). Codigo nuevo, sin acentos a proposito
-// para compilar igual con GCC, Clang y MSVC.
+// Editor de skins de SagiriPrism (estilo Blockbench): barra de herramientas, vista 3D en vivo,
+// textura con zoom, color, pincel y capas. Sin acentos a proposito.
 #pragma once
 
 #include <QColor>
@@ -16,13 +16,12 @@
 #include "minecraft/skins/SkinModel.h"
 #include "ui/dialogs/skins/draw/SkinOpenGLWindow.h"
 
-class QCheckBox;
 class QGridLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QToolButton;
 
-// Lienzo 64x64 con lapiz, borrador, relleno, gotero, cuadricula, guia de partes y deshacer/rehacer.
 class PixelCanvas : public QWidget {
     Q_OBJECT
    public:
@@ -32,27 +31,34 @@ class PixelCanvas : public QWidget {
 
     void setImage(const QImage& img);
     QImage image() const { return m_img; }
+    QImage visibleImage() const;
     void setTool(Tool t) { m_tool = t; }
     void setColor(const QColor& c) { m_color = c; }
+    void setBrush(int n) { m_brush = qBound(1, n, 6); }
+    void setZoom(int z);
     void setShowGrid(bool v);
     void setShowGuide(bool v);
+    void setRegionVisible(int idx, bool v);
+    static int regionCount();
+    static QString regionName(int idx);
     void undo();
     void redo();
-    QSize sizeHint() const override { return { 512, 512 }; }
 
    signals:
     void changed();
     void colorPicked(const QColor& color);
+    void zoomWheel(int direction);
 
    protected:
     void paintEvent(QPaintEvent* e) override;
     void mousePressEvent(QMouseEvent* e) override;
     void mouseMoveEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;
+    void wheelEvent(QWheelEvent* e) override;
 
    private:
-    QRect target() const;
     QPoint pixelAt(const QPoint& pos) const;
+    int regionAt(const QPoint& p) const;
     void paintPixel(const QPoint& p);
     void drawLine(QPoint a, QPoint b);
     void fill(const QPoint& p);
@@ -64,9 +70,12 @@ class PixelCanvas : public QWidget {
     QList<QImage> m_redo;
     Tool m_tool = Tool::Pencil;
     QColor m_color = QColor(0xe8, 0xa3, 0x17);
+    int m_brush = 1;
+    int m_zoom = 8;
     bool m_grid = true;
     bool m_guide = true;
     bool m_drawing = false;
+    bool m_hidden[12] = { false, false, false, false, false, false, false, false, false, false, false, false };
     QPoint m_last;
 };
 
@@ -79,7 +88,6 @@ class SkinEditorDialog : public QDialog, public SkinProvider {
     QImage image() const;
     QString skinName() const;
 
-    // SkinProvider: la vista previa 3D pide aqui la skin que se esta editando
     SkinModel* getSelectedSkin() override { return &m_model; }
     QHash<QString, QImage> capes() override { return {}; }
 
@@ -87,6 +95,7 @@ class SkinEditorDialog : public QDialog, public SkinProvider {
     void refreshPreview();
 
    private:
+    void setTool(int index);
     void setColor(const QColor& c, bool addRecent);
     void rebuildPalette();
 
@@ -94,8 +103,10 @@ class SkinEditorDialog : public QDialog, public SkinProvider {
     SkinOpenGLWindow* m_preview = nullptr;
     QLabel* m_previewLabel = nullptr;
     QPushButton* m_colorBtn = nullptr;
+    QLineEdit* m_hex = nullptr;
     QGridLayout* m_palLayout = nullptr;
     QLineEdit* m_name = nullptr;
+    QToolButton* m_toolBtns[4] = { nullptr, nullptr, nullptr, nullptr };
     QTemporaryDir m_tmp;
     QString m_tmpPath;
     SkinModel m_model;

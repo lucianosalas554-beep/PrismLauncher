@@ -65,6 +65,7 @@ class MainWindow;
 }
 class MainWindow : public QMainWindow {
     Q_OBJECT
+    friend class BloqueWindow;
 
    public:
     explicit MainWindow(QWidget* parent = 0);
