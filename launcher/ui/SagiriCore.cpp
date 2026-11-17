@@ -446,9 +446,9 @@ void playSound(const QString& name)
 }
 
 // ---------------------------------------------------------------------- Red
-Net& Net::get()
+Http& Http::get()
 {
-    static Net n;
+    static Http n;
     return n;
 }
 
@@ -460,19 +460,19 @@ static QNetworkRequest makeRequest(const QUrl& u)
     return r;
 }
 
-void Net::bytes(const QUrl& url, QObject* ctx, const std::function<void(const QByteArray&)>& cb)
+void Http::bytes(const QUrl& url, QObject* ctx, const std::function<void(const QByteArray&)>& cb)
 {
     auto* reply = m_nam.get(makeRequest(url));
     connect(reply, &QNetworkReply::finished, ctx, [reply, cb]() { cb(reply->error() == QNetworkReply::NoError ? reply->readAll() : QByteArray()); });
     connect(reply, &QNetworkReply::finished, reply, &QObject::deleteLater);
 }
 
-void Net::json(const QUrl& url, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb)
+void Http::json(const QUrl& url, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb)
 {
     bytes(url, ctx, [cb](const QByteArray& b) { cb(b.isEmpty() ? QJsonDocument() : QJsonDocument::fromJson(b)); });
 }
 
-void Net::pixmap(const QUrl& url, QObject* ctx, const std::function<void(const QPixmap&)>& cb)
+void Http::pixmap(const QUrl& url, QObject* ctx, const std::function<void(const QPixmap&)>& cb)
 {
     const QString key = url.toString();
     if (m_cache.contains(key)) {

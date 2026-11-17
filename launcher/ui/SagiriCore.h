@@ -50,16 +50,16 @@ QPixmap roundedPixmap(const QPixmap& src, int w, int h, int radius);
 void playSound(const QString& name);
 
 // Peticiones de red con resultado en una funcion. El objeto 'ctx' evita llamar si ya no existe.
-class Net : public QObject {
+class Http : public QObject {
     Q_OBJECT
    public:
-    static Net& get();
+    static Http& get();
     void bytes(const QUrl& url, QObject* ctx, const std::function<void(const QByteArray&)>& cb);
     void json(const QUrl& url, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb);
     void pixmap(const QUrl& url, QObject* ctx, const std::function<void(const QPixmap&)>& cb);
 
    private:
-    Net() = default;
+    Http() = default;
     QNetworkAccessManager m_nam;
     QHash<QString, QPixmap> m_cache;
 };

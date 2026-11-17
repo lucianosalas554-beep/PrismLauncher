@@ -58,7 +58,7 @@
 
 namespace {
 
-using Sagiri::Net;
+using Sagiri::Http;
 
 QString loaderName(PackProfile* pp)
 {
@@ -153,7 +153,7 @@ QFrame* projectCard(QWidget* parent, const QJsonObject& h, const QString& btnTex
     ic->setPixmap(Sagiri::icon("box", QColor(255, 255, 255, 150), 40).pixmap(40, 40));
     const QString iconUrl = h.value("icon_url").toString();
     if (!iconUrl.isEmpty())
-        Net::get().pixmap(QUrl(iconUrl), ic, [ic](const QPixmap& p) { ic->setPixmap(Sagiri::roundedPixmap(p, 72, 72, 14)); });
+        Http::get().pixmap(QUrl(iconUrl), ic, [ic](const QPixmap& p) { ic->setPixmap(Sagiri::roundedPixmap(p, 72, 72, 14)); });
     top->addWidget(ic);
     auto* tv = new QVBoxLayout();
     auto* t = new QLabel(QString("<b>%1</b>").arg(h.value("title").toString().toHtmlEscaped()), f);
@@ -195,7 +195,7 @@ Sagiri::LinkCard* mediaCard(QWidget* parent, const QString& titleText, const QSt
     img->setStyleSheet("background:rgba(255,255,255,0.06);border-radius:12px;");
     img->setPixmap(Sagiri::icon("image", QColor(255, 255, 255, 120), 40).pixmap(40, 40));
     if (thumb.isValid())
-        Net::get().pixmap(thumb, img, [img](const QPixmap& p) { img->setPixmap(Sagiri::roundedPixmap(p, 280, 158, 12)); });
+        Http::get().pixmap(thumb, img, [img](const QPixmap& p) { img->setPixmap(Sagiri::roundedPixmap(p, 280, 158, 12)); });
     v->addWidget(img);
     auto* t = new QLabel(QString("<b>%1</b>").arg(clip(titleText, 90).toHtmlEscaped()), c);
     t->setWordWrap(true);
@@ -816,7 +816,7 @@ void BloqueWindow::modrinthSearch(const QString& type, const QString& query, int
     q.addQueryItem("offset", QString::number(offset));
     q.addQueryItem("index", query.isEmpty() ? "downloads" : "relevance");
     url.setQuery(q);
-    Net::get().json(url, this, [cb](const QJsonDocument& d) { cb(d.object().value("hits").toArray()); });
+    Http::get().json(url, this, [cb](const QJsonDocument& d) { cb(d.object().value("hits").toArray()); });
 }
 
 void BloqueWindow::loadPopular()
@@ -841,7 +841,7 @@ void BloqueWindow::loadPopular()
 void BloqueWindow::installModpack(const QString& projectId, const QString& name)
 {
     toast(tr("Preparando \"%1\"...").arg(name));
-    Net::get().json(QUrl("https://api.modrinth.com/v2/project/" + projectId + "/version"), this, [this, name](const QJsonDocument& d) {
+    Http::get().json(QUrl("https://api.modrinth.com/v2/project/" + projectId + "/version"), this, [this, name](const QJsonDocument& d) {
         const QJsonArray versions = d.array();
         if (versions.isEmpty()) {
             toast(tr("No pude obtener las versiones de \"%1\".").arg(name));
@@ -860,7 +860,7 @@ void BloqueWindow::installModpack(const QString& projectId, const QString& name)
             return;
         }
         const QString fname = file.value("filename").toString();
-        Net::get().bytes(QUrl(file.value("url").toString()), this, [this, fname, name](const QByteArray& b) {
+        Http::get().bytes(QUrl(file.value("url").toString()), this, [this, fname, name](const QByteArray& b) {
             if (b.isEmpty()) {
                 toast(tr("No pude descargar el modpack."));
                 return;
@@ -896,7 +896,7 @@ void BloqueWindow::fetchVersion(const QString& projectId, const QString& type, c
         q.addQueryItem("loaders", QString::fromUtf8(QJsonDocument(lv).toJson(QJsonDocument::Compact)));
     }
     url.setQuery(q);
-    Net::get().json(url, this, [this, projectId, type, mc, loader, filtered, cb](const QJsonDocument& d) {
+    Http::get().json(url, this, [this, projectId, type, mc, loader, filtered, cb](const QJsonDocument& d) {
         const QJsonArray arr = d.array();
         if (arr.isEmpty() && filtered && type != "mod") {
             fetchVersion(projectId, type, mc, loader, false, cb);
@@ -924,7 +924,7 @@ void BloqueWindow::downloadVersionFile(const QJsonObject& version, const QString
     }
     const QString name = file.value("filename").toString();
     const QString sha1 = file.value("hashes").toObject().value("sha1").toString();
-    Net::get().bytes(QUrl(file.value("url").toString()), this, [this, dir, name, sha1, done](const QByteArray& b) {
+    Http::get().bytes(QUrl(file.value("url").toString()), this, [this, dir, name, sha1, done](const QByteArray& b) {
         if (b.isEmpty()) {
             done(false, tr("No pude descargar el archivo."));
             return;
@@ -1030,7 +1030,7 @@ void BloqueWindow::loadFeed(int which)
         m_vidLoaded[which] = false;
     };
     if (which < 2) {
-        Net::get().bytes(QUrl(kFeeds[which].rss), this, [this, grid, fail](const QByteArray& b) {
+        Http::get().bytes(QUrl(kFeeds[which].rss), this, [this, grid, fail](const QByteArray& b) {
             const QList<Vid> vids = parseFeed(b);
             if (vids.isEmpty()) {
                 fail();
@@ -1046,7 +1046,7 @@ void BloqueWindow::loadFeed(int which)
             }
         });
     } else {
-        Net::get().json(QUrl("https://launchercontent.mojang.com/v2/javaPatchNotes.json"), this, [this, grid, fail](const QJsonDocument& d) {
+        Http::get().json(QUrl("https://launchercontent.mojang.com/v2/javaPatchNotes.json"), this, [this, grid, fail](const QJsonDocument& d) {
             const QJsonArray entries = d.object().value("entries").toArray();
             if (entries.isEmpty()) {
                 fail();
