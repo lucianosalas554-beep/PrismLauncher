@@ -44,7 +44,9 @@
 #include "Application.h"
 #include "BaseInstance.h"
 #include "InstanceList.h"
+#include "InstanceImportTask.h"
 #include "SagiriCore.h"
+#include "SagiriPages.h"
 #include "icons/IconList.h"
 #include "minecraft/MinecraftInstance.h"
 #include "minecraft/PackProfile.h"
@@ -492,9 +494,16 @@ BloqueWindow::BloqueWindow(MainWindow* classicWindow) : m_classic(classicWindow)
     auto* sv = new QVBoxLayout(side);
     sv->setContentsMargins(14, 18, 14, 14);
     sv->setSpacing(4);
+    auto* logoRow = new QHBoxLayout();
+    auto* logoIcon = new QLabel(side);
+    logoIcon->setPixmap(Sagiri::appIcon().pixmap(32, 32));
     m_logo = new QLabel("SagiriPrism", side);
     m_logo->setObjectName("logo");
-    sv->addWidget(m_logo);
+    logoRow->addWidget(logoIcon);
+    logoRow->addWidget(m_logo, 1);
+    sv->addLayout(logoRow);
+    setWindowIcon(Sagiri::appIcon());
+    qApp->setWindowIcon(Sagiri::appIcon());
 
     m_pages = new QStackedWidget(root);
     m_nav = new QButtonGroup(this);
@@ -502,7 +511,7 @@ BloqueWindow::BloqueWindow(MainWindow* classicWindow) : m_classic(classicWindow)
     const struct {
         const char* name;
         const char* icon;
-    } navs[] = { { "Inicio", "home" }, { "Instancias", "box" }, { "Explorar", "store" }, { "Videos", "video" }, { "Cuenta", "user" }, { "Ajustes", "gear" } };
+    } navs[] = { { "Inicio", "home" }, { "Instancias", "box" }, { "Explorar", "store" }, { "Skins", "shirt" }, { "Videos", "video" }, { "Cuenta", "user" }, { "Ajustes", "gear" } };
     int idx = 0;
     for (const auto& n : navs) {
         auto* b = new QPushButton(tr(n.name), side);
@@ -543,17 +552,21 @@ BloqueWindow::BloqueWindow(MainWindow* classicWindow) : m_classic(classicWindow)
     m_search->addAction(Sagiri::icon("search", Qt::white, 18), QLineEdit::LeadingPosition);
     top->addWidget(m_search, 1);
     top->addStretch(1);
-    m_chip = action(right, tr("Sin cuenta"), false, [this]() { go(4); });
+    m_chip = action(right, tr("Sin cuenta"), false, [this]() { go(5); });
     m_chip->setIconSize(QSize(28, 28));
     top->addWidget(m_chip);
     rv->addLayout(top);
 
-    m_pages->addWidget(makeHome());
-    m_pages->addWidget(makeInstances());
-    m_pages->addWidget(makeExplore());
-    m_pages->addWidget(makeVideos());
-    m_pages->addWidget(makeAccount());
-    m_pages->addWidget(makeSettings());
+    m_pages->addWidget(makeHome());       // 0
+    m_pages->addWidget(makeInstances());  // 1
+    m_pages->addWidget(makeExplore());    // 2
+    m_skins = new SkinsPage();
+    m_pages->addWidget(m_skins);          // 3
+    m_pages->addWidget(makeVideos());     // 4
+    m_pages->addWidget(makeAccount());    // 5
+    m_pages->addWidget(makeSettings());   // 6
+    m_instPage = new InstancePage();
+    m_pages->addWidget(m_instPage);       // 7 (pagina de una instancia, no esta en el menu)
     rv->addWidget(m_pages, 1);
     h->addWidget(right, 1);
 
@@ -571,6 +584,20 @@ BloqueWindow::BloqueWindow(MainWindow* classicWindow) : m_classic(classicWindow)
     connect(APPLICATION->accounts(), &AccountList::defaultAccountChanged, this, [this]() { updateAccount(); });
     connect(APPLICATION->accounts(), &AccountList::listChanged, this, [this]() { updateAccount(); });
     connect(&Sagiri::Config::get(), &Sagiri::Config::changed, this, [this]() { applyTheme(); });
+    connect(m_instPage, &InstancePage::backRequested, this, [this]() { go(1); });
+    connect(m_instPage, &InstancePage::playRequested, this, [this](const QString& id) { launch(id); });
+    connect(m_instPage, &InstancePage::exploreRequested, this, [this](const QString& id) {
+        const int i = m_exInst->findData(id);
+        if (i >= 0)
+            m_exInst->setCurrentIndex(i);
+        go(2);
+    });
+    connect(m_instPage, &InstancePage::advancedRequested, this, [this](const QString& id) {
+        if (auto* inst = APPLICATION->instances()->getInstanceById(id))
+            APPLICATION->showInstanceWindow(inst);
+    });
+    connect(m_instPage, &InstancePage::toast, this, [this](const QString& t) { toast(t); });
+    connect(m_skins, &SkinsPage::toast, this, [this](const QString& t) { toast(t); });
     qApp->installEventFilter(this);
 
     applyTheme();
@@ -615,7 +642,7 @@ void BloqueWindow::go(int page)
 {
     if (page < 0 || page >= m_pages->count())
         return;
-    if (auto* b = m_nav->button(page))
+    if (auto* b = m_nav->button(page == 7 ? 1 : page))
         b->setChecked(true);
     if (page == m_pages->currentIndex())
         return;
@@ -631,6 +658,8 @@ void BloqueWindow::go(int page)
         a->start(QAbstractAnimation::DeleteWhenStopped);
     }
     if (page == 3)
+        m_skins->reload();
+    if (page == 4)
         loadFeed(m_vidTabs->checkedId() < 0 ? 0 : m_vidTabs->checkedId());
 }
 
@@ -703,8 +732,19 @@ void BloqueWindow::launch(const QString& id)
 
 void BloqueWindow::editInstance(const QString& id)
 {
-    if (auto* inst = APPLICATION->instances()->getInstanceById(id))
-        APPLICATION->showInstanceWindow(inst);
+    if (!APPLICATION->instances()->getInstanceById(id))
+        return;
+    m_instPage->setInstance(id);
+    go(7);
+}
+
+void BloqueWindow::createInstance()
+{
+    CreateInstanceDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        refresh();
+        toast(tr("Instancia creada."));
+    }
 }
 
 void BloqueWindow::openFolder(const QString& id)
@@ -873,9 +913,18 @@ void BloqueWindow::installModpack(const QString& projectId, const QString& name)
             }
             f.write(b);
             f.close();
-            // se abre el asistente de Prism con el archivo ya cargado: instala el modpack completo con sus mods
-            if (m_classic)
-                m_classic->addInstance(QUrl::fromLocalFile(path).toString());
+            // instalacion directa: se crea la instancia con el archivo del modpack, sin pasar por el buscador
+            if (!m_classic)
+                return;
+            QString instDir = APPLICATION->settings()->get("InstanceDir").toString();
+            if (QDir::isRelativePath(instDir))
+                instDir = QDir(APPLICATION->dataRoot()).absoluteFilePath(instDir);
+            auto* task = new InstanceImportTask(QUrl::fromLocalFile(path), true, this, QMap<QString, QString>());
+            task->setName(name);
+            task->setGroup(APPLICATION->settings()->get("LastUsedGroupForNewInstance").toString());
+            task->setIcon("default");
+            task->setTargetDir(instDir);
+            m_classic->instanceFromInstanceTask(task);
         });
     });
 }
@@ -1082,6 +1131,7 @@ QWidget* BloqueWindow::makeHome()
     auto* head = new QHBoxLayout();
     head->addWidget(new QLabel(tr("<h2>Modpacks populares</h2>")));
     head->addStretch(1);
+    head->addWidget(action(w, tr("Crear instancia"), false, [this]() { createInstance(); }, "plus"));
     head->addWidget(action(w, tr("Ver todo"), false, [this]() { go(2); }));
     v->addLayout(head);
     auto* row = new QWidget();
@@ -1103,6 +1153,11 @@ QWidget* BloqueWindow::makeInstances()
     h->setContentsMargins(0, 0, 0, 0);
     auto* left = new QVBoxLayout();
     left->addWidget(title(tr("Instancias"), tr("Elige una y usa el panel de la derecha. Doble clic para jugar.")));
+    auto* newBar = new QHBoxLayout();
+    newBar->addWidget(action(w, tr("Crear instancia"), true, [this]() { createInstance(); }, "plus"));
+    newBar->addWidget(action(w, tr("Buscar modpacks"), false, [this]() { go(2); }, "store"));
+    newBar->addStretch(1);
+    left->addLayout(newBar);
     m_grid = new QListWidget(w);
     m_grid->setViewMode(QListView::IconMode);
     m_grid->setIconSize(QSize(72, 72));
@@ -1137,7 +1192,7 @@ QWidget* BloqueWindow::makeInstances()
     del->setProperty("danger", true);
     dv->addWidget(del);
     dv->addStretch(1);
-    dv->addWidget(action(m_detPanel, tr("Nueva instancia / importar"), false, [this]() { go(2); }, "plus"));
+    dv->addWidget(action(m_detPanel, tr("Crear instancia"), false, [this]() { createInstance(); }, "plus"));
     h->addWidget(m_detPanel);
     m_detPanel->hide();
 
@@ -1279,7 +1334,7 @@ QWidget* BloqueWindow::makeAccount()
     m_accName = new QLabel(head);
     col->addWidget(m_accName);
     auto* btns = new QHBoxLayout();
-    btns->addWidget(action(head, tr("Editar skins y capas"), true, [this]() { openSkins(); }, "shirt"));
+    btns->addWidget(action(head, tr("Editar skins y capas"), true, [this]() { go(3); }, "shirt"));
     btns->addWidget(action(head, tr("Foto de perfil: elegir imagen"), false, [this]() {
         const QString f = QFileDialog::getOpenFileName(this, tr("Elegir foto de perfil"), QString(), tr("Imagenes (*.png *.jpg *.jpeg *.bmp *.webp)"));
         if (f.isEmpty())

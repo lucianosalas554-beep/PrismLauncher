@@ -12,6 +12,7 @@
 #include <cmath>
 
 #include "Application.h"
+#include "SagiriIcon.h"
 
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -179,6 +180,8 @@ QSlider::handle:horizontal { background:@ACCENT; width:16px; margin:-5px 0; bord
 QTabWidget::pane { border:0; }
 QTabBar::tab { background:transparent; color:@MUTED; padding:10px 18px; border-radius:@Rpx; margin-right:4px; }
 QTabBar::tab:selected { background:@ACCENTA; color:@TEXT; }
+QCheckBox[switch="true"]::indicator { width:40px; height:22px; border-radius:11px; background:@PANEL2H; border:1px solid @LINE; }
+QCheckBox[switch="true"]::indicator:checked { background:@ACCENT; }
 QToolTip { background:@SOLID; color:@TEXT; border:1px solid @LINE; padding:4px; }
 )QSS";
     q.replace("@FONT", fontFamily.isEmpty() ? QString() : QString("font-family:\"%1\";").arg(fontFamily));
@@ -445,6 +448,37 @@ void playSound(const QString& name)
 #endif
 }
 
+QIcon appIcon()
+{
+    static const QIcon ic = [] {
+        QPixmap pm;
+        pm.loadFromData(kSagiriIcon, sizeof(kSagiriIcon));
+        return QIcon(pm);
+    }();
+    return ic;
+}
+
+QPushButton* makeButton(QWidget* parent, const QString& text, bool primary, const std::function<void()>& fn, const QString& iconName)
+{
+    auto* b = new QPushButton(text, parent);
+    b->setProperty("primary", primary);
+    b->setCursor(Qt::PointingHandCursor);
+    if (!iconName.isEmpty()) {
+        b->setIcon(icon(iconName, Qt::white, 18));
+        b->setIconSize(QSize(18, 18));
+    }
+    QObject::connect(b, &QPushButton::clicked, parent, [fn]() { fn(); });
+    return b;
+}
+
+void clearLayout(QLayout* l)
+{
+    while (QLayoutItem* it = l->takeAt(0)) {
+        delete it->widget();
+        delete it;
+    }
+}
+
 // ---------------------------------------------------------------------- Red
 Http& Http::get()
 {
@@ -470,6 +504,18 @@ void Http::bytes(const QUrl& url, QObject* ctx, const std::function<void(const Q
 void Http::json(const QUrl& url, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb)
 {
     bytes(url, ctx, [cb](const QByteArray& b) { cb(b.isEmpty() ? QJsonDocument() : QJsonDocument::fromJson(b)); });
+}
+
+void Http::post(const QUrl& url, const QByteArray& body, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb)
+{
+    QNetworkRequest r = makeRequest(url);
+    r.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    auto* reply = m_nam.post(r, body);
+    connect(reply, &QNetworkReply::finished, ctx, [reply, cb]() {
+        const QByteArray b = reply->error() == QNetworkReply::NoError ? reply->readAll() : QByteArray();
+        cb(b.isEmpty() ? QJsonDocument() : QJsonDocument::fromJson(b));
+    });
+    connect(reply, &QNetworkReply::finished, reply, &QObject::deleteLater);
 }
 
 void Http::pixmap(const QUrl& url, QObject* ctx, const std::function<void(const QPixmap&)>& cb)

@@ -9,7 +9,9 @@
 #include <QJsonDocument>
 #include <QMouseEvent>
 #include <QNetworkAccessManager>
+#include <QLayout>
 #include <QObject>
+#include <QPushButton>
 #include <QPixmap>
 #include <QSettings>
 #include <QStringList>
@@ -48,6 +50,9 @@ QString buildStyleSheet(const Theme& t, bool translucent, int alphaPct, const QS
 QIcon icon(const QString& name, const QColor& color = Qt::white, int size = 22);
 QPixmap roundedPixmap(const QPixmap& src, int w, int h, int radius);
 void playSound(const QString& name);
+QIcon appIcon();
+QPushButton* makeButton(QWidget* parent, const QString& text, bool primary, const std::function<void()>& fn, const QString& iconName = QString());
+void clearLayout(QLayout* l);
 
 // Peticiones de red con resultado en una funcion. El objeto 'ctx' evita llamar si ya no existe.
 class Http : public QObject {
@@ -57,6 +62,7 @@ class Http : public QObject {
     void bytes(const QUrl& url, QObject* ctx, const std::function<void(const QByteArray&)>& cb);
     void json(const QUrl& url, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb);
     void pixmap(const QUrl& url, QObject* ctx, const std::function<void(const QPixmap&)>& cb);
+    void post(const QUrl& url, const QByteArray& body, QObject* ctx, const std::function<void(const QJsonDocument&)>& cb);
 
    private:
     Http() = default;

@@ -16,7 +16,9 @@
 #include <QWidget>
 #include <functional>
 
+class InstancePage;
 class MainWindow;
+class SkinsPage;
 class QButtonGroup;
 class QComboBox;
 class QGridLayout;
@@ -97,6 +99,7 @@ class BloqueWindow : public QMainWindow {
     void deleteInstance(const QString& id);
     void openFolder(const QString& id);
     void openSkins();
+    void createInstance();
 
     void modrinthSearch(const QString& type, const QString& query, int offset, const std::function<void(const QJsonArray&)>& cb);
     void loadPopular();
@@ -115,6 +118,8 @@ class BloqueWindow : public QMainWindow {
     QPushButton* m_chip = nullptr;
     QLabel* m_logo = nullptr;
     BloqueCarousel* m_carousel = nullptr;
+    InstancePage* m_instPage = nullptr;
+    SkinsPage* m_skins = nullptr;
     QListWidget* m_quick = nullptr;
     QListWidget* m_grid = nullptr;
     QHBoxLayout* m_popularRow = nullptr;
