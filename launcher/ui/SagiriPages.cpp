@@ -601,7 +601,7 @@ void InstancePage::loadWorlds()
         return;
     const QDir saves(QDir(inst->gameRoot()).filePath("saves"));
     for (const QFileInfo& fi : saves.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Time)) {
-        m_worlds->addItem(Sagiri::icon("store", Qt::white, 20), fi.fileName() + "    (" + fi.lastModified().toString("dd/MM/yyyy HH:mm") + ")");
+        new QListWidgetItem(Sagiri::icon("store", Qt::white, 20), fi.fileName() + "    (" + fi.lastModified().toString("dd/MM/yyyy HH:mm") + ")", m_worlds);
     }
     if (m_worlds->count() == 0)
         m_worlds->addItem(tr("Todavia no hay mundos."));
@@ -700,7 +700,6 @@ void SkinsPage::reload()
         delete m_list;
         m_acct = acct;
         m_list = new SkinList(this, APPLICATION->settings()->get("SkinsDir").toString(), acct);
-        m_list->update();
         const int row = m_list->getSelectedAccountSkin();
         if (row >= 0)
             m_selected = m_list->data(m_list->index(row), Qt::UserRole).toString();
@@ -806,7 +805,6 @@ void SkinsPage::addFile(const QString& file)
         emit toast(msg);
         return;
     }
-    m_list->update();
     rebuild();
     emit toast(tr("Skin anadida."));
 }
@@ -850,7 +848,6 @@ void SkinsPage::editSelected()
         emit toast(msg);
         return;
     }
-    m_list->update();
     rebuild();
 }
 
@@ -865,7 +862,6 @@ void SkinsPage::removeSelected()
         return;
     m_list->deleteSkin(m_selected, true);
     m_selected.clear();
-    m_list->update();
     rebuild();
 }
 
